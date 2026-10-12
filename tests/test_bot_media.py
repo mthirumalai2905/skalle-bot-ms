@@ -92,8 +92,10 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
         store = QuietStore(tmp_path / "quiet.json")
         deepseek = Box()
 
-        async def reply(history):
+        async def reply(history, note="", coding=False):
             deepseek.history = history
+            deepseek.note = note
+            deepseek.coding = coding
             return "yeah"
 
         deepseek.reply = reply
@@ -133,6 +135,8 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
             await bot._reply(again)
             assert deepseek.history == [("Thiru", "lol")]
             assert again.replies == ["yeah"]
+            assert deepseek.note == ""
+            assert deepseek.coding is False
         finally:
             await bot.close()
 
@@ -148,6 +152,65 @@ def test_a_command_still_works_beside_an_image(tmp_path):
             await bot.on_message(message)
             assert message.replies == ["I'm already here."]
             assert bot._queue.qsize() == 0
+        finally:
+            await bot.close()
+
+    asyncio.run(scenario())
+
+
+def test_member_count_clock_and_code_are_passed_through(tmp_path):
+    async def scenario():
+        deepseek = Box()
+
+        async def reply(history, note="", coding=False):
+            deepseek.history = history
+            deepseek.note = note
+            deepseek.coding = coding
+            return "ok"
+
+        deepseek.reply = reply
+        bot = SkalleBot(settings(tmp_path), QuietStore(tmp_path / "quiet.json"), deepseek)
+
+        async def fetch_guild(guild_id, with_counts=False):
+            deepseek.fetched = (guild_id, with_counts)
+            return Box(approximate_member_count=100, approximate_presence_count=7, member_count=99)
+
+        bot.fetch_guild = fetch_guild
+        try:
+            channel = Channel(99, [])
+            members = posted(channel, person("Thiru", 6), content="how many members do we have in this group")
+            members.guild = Box(id=5, member_count=3)
+            await bot._reply(members)
+            assert deepseek.fetched == (5, True)
+            assert "Members in this server: 100." in deepseek.note
+            assert "Online members" not in deepseek.note
+            assert "Norway" not in deepseek.note
+            assert deepseek.coding is False
+
+            online = posted(channel, person("Thiru", 6), content="how many members are online")
+            online.guild = Box(id=5)
+            await bot._reply(online)
+            assert "Online members: 7." in deepseek.note
+            assert "Members in this server" not in deepseek.note
+
+            clock = posted(channel, person("Thiru", 6), content="what time is it")
+            await bot._reply(clock)
+            assert "Norway (Europe/Oslo):" in deepseek.note
+            assert "Members" not in deepseek.note
+
+            code = posted(channel, person("Thiru", 6), content="write a python function that adds two numbers")
+            await bot._reply(code)
+            assert deepseek.coding is True
+            assert deepseek.note == ""
+
+            async def broken_fetch(guild_id, with_counts=False):
+                raise RuntimeError("portal down")
+
+            bot.fetch_guild = broken_fetch
+            fallback = posted(channel, person("Thiru", 6), content="how many members")
+            fallback.guild = Box(id=5, member_count=42)
+            await bot._reply(fallback)
+            assert "Members in this server: 42." in deepseek.note
         finally:
             await bot.close()
 

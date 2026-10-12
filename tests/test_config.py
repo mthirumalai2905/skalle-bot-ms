@@ -83,10 +83,31 @@ def test_deepseek_reply_disables_thinking(monkeypatch):
     assert seen["auth"] == "Bearer test-key"
     assert seen["body"]["model"] == "deepseek-flash"
     assert seen["body"]["temperature"] == 0.3
+    assert seen["body"]["max_tokens"] == 200
+    assert "Live facts" not in seen["body"]["messages"][0]["content"]
+    assert "one to three sentences" in seen["body"]["messages"][0]["content"]
     assert "Never invent" in seen["body"]["messages"][0]["content"]
     assert "You cannot see pictures" in seen["body"]["messages"][0]["content"]
     assert seen["body"]["thinking"] == {"type": "disabled"}
     assert seen["body"]["messages"][1] == {"role": "user", "content": "Ada: hello"}
+
+
+def test_live_facts_and_code_change_the_request(monkeypatch):
+    settings = _settings(monkeypatch)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "here"}}]})
+
+    client = DeepSeekClient(settings, transport=httpx.MockTransport(handler))
+    import asyncio
+
+    asyncio.run(client.reply([("Ada", "write a python function")], note="Members in this server: 100.", coding=True))
+    system = seen["body"]["messages"][0]["content"]
+    assert "Members in this server: 100." in system
+    assert "markdown block" in system
+    assert seen["body"]["max_tokens"] == 700
 
 
 def test_sanitize_reply_limits_length_and_mentions():
@@ -96,3 +117,8 @@ def test_sanitize_reply_limits_length_and_mentions():
     assert sanitize_reply("  Skalle: hi @everyone ") == "hi @\u200beveryone"
     assert sanitize_reply("x" * 2000).endswith("…")
     assert len(sanitize_reply("x" * 2000)) == 1900
+    code = "```python\n" + ("print(1)\n" * 400)
+    clipped = sanitize_reply(code, coding=True)
+    assert clipped.count("```") % 2 == 0
+    assert len(clipped) <= 2000
+    assert not clipped.endswith("…")

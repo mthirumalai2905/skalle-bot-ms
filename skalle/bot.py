@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 import discord
 from discord import app_commands
@@ -12,6 +13,7 @@ from skalle.commands import QuietCommand, StatusCommand, TalkCommand, parse_chan
 from skalle.config import Settings
 from skalle.content import see_message
 from skalle.deepseek import DeepSeekClient, DeepSeekError
+from skalle.facts import asks_for_code, asks_for_members, live_note, needs_live_facts
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
 from skalle.quiet import DurationError, QuietStore
 
@@ -108,14 +110,16 @@ class SkalleBot(discord.Client):
         if not seen.speech:
             return
         history = await self._history(message)
-        current = seen.display[:800]
+        coding = asks_for_code(seen.speech)
+        current = seen.display[: 2000 if coding else 800]
         if current:
             history.append((self._speaker(message), current))
         if not history:
             return
+        note = await self._live_note(message, seen.speech)
         try:
             async with message.channel.typing():
-                text = await self.deepseek.reply(history)
+                text = await self.deepseek.reply(history, note=note, coding=coding)
         except DeepSeekError as exc:
             log.warning("%s", exc)
             text = "I lost that thought. Say it again?"
@@ -126,6 +130,43 @@ class SkalleBot(discord.Client):
             mention_author=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )
+
+    async def _live_note(self, message: discord.Message, speech: str) -> str:
+        if not needs_live_facts(speech):
+            return ""
+        members = online = None
+        if asks_for_members(speech):
+            members, online = await self._group_counts(message)
+        try:
+            return await live_note(
+                speech,
+                now=datetime.now(timezone.utc),
+                members=members,
+                online=online,
+            )
+        except Exception:
+            log.exception("Could not collect live facts")
+            return ""
+
+    async def _group_counts(self, message: discord.Message) -> tuple[int | None, int | None]:
+        guild = getattr(message, "guild", None)
+        guild_id = getattr(guild, "id", None)
+        fetched = None
+        if isinstance(guild_id, int) and guild_id > 0:
+            try:
+                fetched = await self.fetch_guild(guild_id, with_counts=True)
+            except Exception:
+                log.warning("Could not refresh the server member count")
+        source = fetched if fetched is not None else guild
+        if source is None:
+            return None, None
+        members = _as_count(getattr(source, "approximate_member_count", None))
+        if members is None and source is not None:
+            members = _as_count(getattr(source, "member_count", None))
+        if members is None and guild is not None and source is not guild:
+            members = _as_count(getattr(guild, "member_count", None))
+        online = _as_count(getattr(source, "approximate_presence_count", None))
+        return members, online
 
     async def _history(self, message: discord.Message) -> list[tuple[str, str]]:
         items: list[tuple[str, str]] = []
@@ -233,3 +274,11 @@ class SkalleBot(discord.Client):
 
 def _in_channel(interaction: discord.Interaction, channel_id: int) -> bool:
     return interaction.channel_id == channel_id
+
+
+def _as_count(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    if value < 0:
+        return None
+    return value
