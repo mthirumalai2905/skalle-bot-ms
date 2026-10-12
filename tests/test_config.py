@@ -84,6 +84,7 @@ def test_deepseek_reply_disables_thinking(monkeypatch):
     assert seen["body"]["model"] == "deepseek-flash"
     assert seen["body"]["temperature"] == 0.3
     assert "Never invent" in seen["body"]["messages"][0]["content"]
+    assert "You cannot see pictures" in seen["body"]["messages"][0]["content"]
     assert seen["body"]["thinking"] == {"type": "disabled"}
     assert seen["body"]["messages"][1] == {"role": "user", "content": "Ada: hello"}
 

@@ -10,6 +10,7 @@ from discord import app_commands
 
 from skalle.commands import QuietCommand, StatusCommand, TalkCommand, parse_channel_command
 from skalle.config import Settings
+from skalle.content import see_message
 from skalle.deepseek import DeepSeekClient, DeepSeekError
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
 from skalle.quiet import DurationError, QuietStore
@@ -49,16 +50,23 @@ class SkalleBot(discord.Client):
         log.info("Listening in channel %s", self.settings.channel_id)
 
     async def on_message(self, message: discord.Message) -> None:
-        if message.author.bot or message.guild is None:
+        try:
+            author_is_bot = message.author.bot
+            guild = message.guild
+            channel_id = message.channel.id
+        except Exception:
+            log.exception("Could not read a channel message")
             return
-        if message.channel.id != self.settings.channel_id:
+        if author_is_bot or guild is None:
             return
-        text = message.clean_content.strip()
-        command = parse_channel_command(text)
+        if channel_id != self.settings.channel_id:
+            return
+        seen = see_message(message)
+        command = parse_channel_command(seen.speech)
         if command is not None:
             await self._handle_text_command(message, command)
             return
-        if self.store.is_quiet() or not text:
+        if self.store.is_quiet() or not seen.speech:
             return
         await self._queue.put(message)
 
@@ -96,10 +104,15 @@ class SkalleBot(discord.Client):
                 self._queue.task_done()
 
     async def _reply(self, message: discord.Message) -> None:
+        seen = see_message(message)
+        if not seen.speech:
+            return
         history = await self._history(message)
-        current = message.clean_content.strip()[:800]
+        current = seen.display[:800]
         if current:
-            history.append((message.author.display_name, current))
+            history.append((self._speaker(message), current))
+        if not history:
+            return
         try:
             async with message.channel.typing():
                 text = await self.deepseek.reply(history)
@@ -116,19 +129,42 @@ class SkalleBot(discord.Client):
 
     async def _history(self, message: discord.Message) -> list[tuple[str, str]]:
         items: list[tuple[str, str]] = []
-        async for older in message.channel.history(
-            limit=self.settings.max_history,
-            before=message,
-            oldest_first=True,
-        ):
-            content = older.clean_content.strip()
-            if not content:
-                continue
-            if older.author.bot and (self.user is None or older.author.id != self.user.id):
-                continue
-            name = "Skalle" if self.user and older.author.id == self.user.id else older.author.display_name
-            items.append((name, content[:800]))
+        try:
+            async for older in message.channel.history(
+                limit=self.settings.max_history,
+                before=message,
+                oldest_first=True,
+            ):
+                item = self._history_item(older)
+                if item is not None:
+                    items.append(item)
+        except Exception:
+            log.exception("Could not read channel history")
         return items
+
+    def _history_item(self, older: discord.Message) -> tuple[str, str] | None:
+        try:
+            author = older.author
+            if author.bot and (self.user is None or author.id != self.user.id):
+                return None
+            seen = see_message(older)
+            if not seen.display:
+                return None
+            return (self._speaker(older), seen.display[:800])
+        except Exception:
+            log.exception("Skipping a channel message")
+            return None
+
+    def _speaker(self, message: discord.Message) -> str:
+        try:
+            if self.user is not None and message.author.id == self.user.id:
+                return "Skalle"
+            name = message.author.display_name
+        except Exception:
+            return "Someone"
+        if not isinstance(name, str) or not name.strip():
+            return "Someone"
+        return " ".join(name.split())[:80]
 
     async def _sync_commands(self) -> None:
         if self._synced:
