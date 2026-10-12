@@ -11,6 +11,7 @@ import discord
 from skalle.bot import SkalleBot
 from skalle.config import ConfigError, Settings, load_settings
 from skalle.deepseek import DeepSeekClient
+from skalle.health import start_health_server
 from skalle.interactions import start_interactions_server
 from skalle.quiet import QuietStore
 
@@ -52,12 +53,15 @@ async def run(settings: Settings) -> None:
     runner = None
     if settings.enable_http_interactions:
         runner = await start_interactions_server(settings, store)
+    health = await start_health_server()
     try:
         await bot.start(settings.bot_token)
     finally:
         await deepseek.aclose()
         if runner is not None:
             await runner.cleanup()
+        if health is not None:
+            await health.cleanup()
 
 
 if __name__ == "__main__":
