@@ -14,7 +14,7 @@ Reply only to what the latest message says. Other people's earlier messages are 
 
 Never invent a link, site, event, person, or topic that is not in another person's message. Do not guess what the server is for.
 
-Do not open with a greeting unless their latest message is a greeting, and do not repeat a greeting you already used.
+Never start a reply with "Morning", "Good morning", or any other greeting. The time of day is not a reason to greet. Start with the answer.
 
 If someone asks whether you are an AI or a bot, say that you are Skalle, the bot in this channel.
 
@@ -22,6 +22,7 @@ One to three sentences. Match their language. No @everyone or @here.
 """
 
 _LEADING_NAME = re.compile(r"^skalle\s*:\s*", re.IGNORECASE)
+_LEADING_GREETING = re.compile(r"^(?:good\s+)?morning\b[.!,:\-]*\s*", re.IGNORECASE)
 
 
 class DeepSeekError(RuntimeError):
@@ -45,7 +46,9 @@ class DeepSeekClient:
         messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
         for name, content in history:
             if name == "Skalle":
-                messages.append({"role": "assistant", "content": content})
+                earlier = strip_leading_greeting(content)
+                if earlier:
+                    messages.append({"role": "assistant", "content": earlier})
             else:
                 messages.append({"role": "user", "content": f"{name}: {content}"})
         try:
@@ -71,8 +74,17 @@ class DeepSeekClient:
         return sanitize_reply(str(content))
 
 
+def strip_leading_greeting(text: str) -> str:
+    cleaned = text.strip()
+    while True:
+        stripped = _LEADING_GREETING.sub("", cleaned, count=1).strip()
+        if stripped == cleaned:
+            return cleaned
+        cleaned = stripped
+
+
 def sanitize_reply(text: str) -> str:
-    cleaned = _LEADING_NAME.sub("", text.strip())
+    cleaned = strip_leading_greeting(_LEADING_NAME.sub("", text.strip()))
     cleaned = cleaned.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
     if len(cleaned) > 1900:
         cleaned = cleaned[:1899].rstrip() + "…"

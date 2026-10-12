@@ -89,6 +89,9 @@ def test_deepseek_reply_disables_thinking(monkeypatch):
 
 
 def test_sanitize_reply_limits_length_and_mentions():
+    assert sanitize_reply("Morning. I can write code, yeah.") == "I can write code, yeah."
+    assert sanitize_reply("Good morning, Thiru just said bye.") == "Thiru just said bye."
+    assert sanitize_reply("I'm already here.") == "I'm already here."
     assert sanitize_reply("  Skalle: hi @everyone ") == "hi @\u200beveryone"
     assert sanitize_reply("x" * 2000).endswith("…")
     assert len(sanitize_reply("x" * 2000)) == 1900
