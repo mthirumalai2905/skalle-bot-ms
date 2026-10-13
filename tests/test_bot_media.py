@@ -92,10 +92,11 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
         store = QuietStore(tmp_path / "quiet.json")
         deepseek = Box()
 
-        async def reply(history, note="", coding=False):
+        async def reply(history, note="", coding=False, direct=False, detail=False):
             deepseek.history = history
             deepseek.note = note
             deepseek.coding = coding
+            deepseek.direct = direct
             return "yeah"
 
         deepseek.reply = reply
@@ -137,6 +138,7 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
             assert again.replies == ["yeah"]
             assert deepseek.note == ""
             assert deepseek.coding is False
+            assert deepseek.direct is False
         finally:
             await bot.close()
 
@@ -162,10 +164,11 @@ def test_member_count_clock_and_code_are_passed_through(tmp_path):
     async def scenario():
         deepseek = Box()
 
-        async def reply(history, note="", coding=False):
+        async def reply(history, note="", coding=False, direct=False, detail=False):
             deepseek.history = history
             deepseek.note = note
             deepseek.coding = coding
+            deepseek.direct = direct
             return "ok"
 
         deepseek.reply = reply
@@ -211,6 +214,43 @@ def test_member_count_clock_and_code_are_passed_through(tmp_path):
             fallback.guild = Box(id=5, member_count=42)
             await bot._reply(fallback)
             assert "Members in this server: 42." in deepseek.note
+            assert deepseek.direct is False
+        finally:
+            await bot.close()
+
+    asyncio.run(scenario())
+
+
+def test_a_direct_message_carries_the_public_pages_even_when_the_channel_is_quiet(tmp_path):
+    async def scenario():
+        deepseek = Box()
+
+        async def reply(history, note="", coding=False, direct=False, detail=False):
+            deepseek.note = note
+            deepseek.direct = direct
+            deepseek.detail = detail
+            return "The Real Time Web is a live network."
+
+        deepseek.reply = reply
+        store = QuietStore(tmp_path / "quiet.json")
+        store.set_quiet(2, max_hours=72)
+        bot = SkalleBot(settings(tmp_path), store, deepseek)
+        try:
+            channel = Channel(99, [])
+            quieted = posted(channel, person("Thiru", 6), content="what is a ghost")
+            await bot.on_message(quieted)
+            assert bot._queue.qsize() == 0
+
+            dm = posted(Channel(1, []), person("Thiru", 6), content="what is a ghost on the real time web")
+            dm.guild = None
+            await bot.on_message(dm)
+            assert bot._queue.qsize() == 1
+            await bot._reply(dm)
+            assert deepseek.direct is True
+            assert deepseek.detail is False
+            assert "Public knowledge" in deepseek.note
+            assert "bijective" in deepseek.note.lower() or "Ghost" in deepseek.note
+            assert dm.replies == ["The Real Time Web is a live network."]
         finally:
             await bot.close()
 

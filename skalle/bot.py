@@ -14,6 +14,7 @@ from skalle.config import Settings
 from skalle.content import see_message
 from skalle.deepseek import DeepSeekClient, DeepSeekError
 from skalle.facts import asks_for_code, asks_for_members, live_note, needs_live_facts
+from skalle.knowledge import asks_for_detail, knowledge_note
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
 from skalle.quiet import DurationError, QuietStore
 
@@ -59,11 +60,15 @@ class SkalleBot(discord.Client):
         except Exception:
             log.exception("Could not read a channel message")
             return
-        if author_is_bot or guild is None:
+        if author_is_bot:
+            return
+        seen = see_message(message)
+        if guild is None:
+            if seen.speech:
+                await self._queue.put(message)
             return
         if channel_id != self.settings.channel_id:
             return
-        seen = see_message(message)
         command = parse_channel_command(seen.speech)
         if command is not None:
             await self._handle_text_command(message, command)
@@ -95,7 +100,7 @@ class SkalleBot(discord.Client):
         while True:
             message = await self._queue.get()
             try:
-                if not self.store.is_quiet():
+                if getattr(message, "guild", None) is None or not self.store.is_quiet():
                     await self._reply(message)
                     await asyncio.sleep(1)
             except asyncio.CancelledError:
@@ -116,10 +121,17 @@ class SkalleBot(discord.Client):
             history.append((self._speaker(message), current))
         if not history:
             return
+        direct = getattr(message, "guild", None) is None
+        detail = direct and asks_for_detail(seen.speech)
         note = await self._live_note(message, seen.speech)
+        known = knowledge_note(seen.speech, direct=direct)
+        if known:
+            note = f"{note}\n\n{known}" if note else known
         try:
             async with message.channel.typing():
-                text = await self.deepseek.reply(history, note=note, coding=coding)
+                text = await self.deepseek.reply(
+                    history, note=note, coding=coding, direct=direct, detail=detail
+                )
         except DeepSeekError as exc:
             log.warning("%s", exc)
             text = "I lost that thought. Say it again?"

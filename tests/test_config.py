@@ -110,6 +110,57 @@ def test_live_facts_and_code_change_the_request(monkeypatch):
     assert seen["body"]["max_tokens"] == 700
 
 
+def test_a_direct_message_gets_room_for_a_short_answer(monkeypatch):
+    settings = _settings(monkeypatch)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "A ghost is one live stand-in."}}]})
+
+    client = DeepSeekClient(settings, transport=httpx.MockTransport(handler))
+    import asyncio
+
+    text = asyncio.run(
+        client.reply(
+            [("Ada", "what is a ghost")],
+            note="Public knowledge\n\nA ghost is bijective.",
+            direct=True,
+        )
+    )
+    assert text == "A ghost is one live stand-in."
+    system = seen["body"]["messages"][0]["content"]
+    assert seen["body"]["max_tokens"] == 100
+    assert "direct message" in system
+    assert "Public knowledge" in system
+    assert "One to three short sentences" in system
+    assert "one to three sentences" in system
+
+
+def test_a_detail_request_gets_a_few_more_lines(monkeypatch):
+    settings = _settings(monkeypatch)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "Line one."}}]})
+
+    client = DeepSeekClient(settings, transport=httpx.MockTransport(handler))
+    import asyncio
+
+    asyncio.run(
+        client.reply(
+            [("Ada", "explain this in detail")],
+            note="Public knowledge",
+            direct=True,
+            detail=True,
+        )
+    )
+    system = seen["body"]["messages"][0]["content"]
+    assert seen["body"]["max_tokens"] == 170
+    assert "Four or five lines" in system
+
+
 def test_sanitize_reply_limits_length_and_mentions():
     assert sanitize_reply("Morning. I can write code, yeah.") == "I can write code, yeah."
     assert sanitize_reply("Good morning, Thiru just said bye.") == "Thiru just said bye."
