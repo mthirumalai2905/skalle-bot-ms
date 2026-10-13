@@ -16,8 +16,6 @@ KNOWLEDGE_PATH = ROOT / "knowledge" / "network.md"
 CORPUS_DIR = ROOT / "knowledge" / "corpus"
 _SOURCE = "\n## SOURCE NOTES\n"
 _PAGE = "\n### PAGE\n"
-_EACH = 4200
-_MASTER_EACH = 1600
 
 _TOPIC = re.compile(
     r"real[-\s]?time\s+web|realtimeweb|\brtw\b|\bsynx\b|skalle\.ai|"
@@ -85,7 +83,7 @@ class Page:
 
 @dataclass(frozen=True)
 class Book:
-    rapid: str
+    blocks: tuple[tuple[str, str], ...]
     pages: tuple[Page, ...]
 
 
@@ -97,14 +95,31 @@ def asks_for_detail(text: str) -> bool:
     return _DETAIL.search(text) is not None
 
 
-def knowledge_note(text: str, *, direct: bool = False) -> str:
-    if not direct and _TOPIC.search(text) is None:
+_ANCHOR = (
+    "Synx is not file synchronization. Synx AS makes the Real Time Web tools: "
+    "Synx DNS names domains and services, Synx BIOS is the command-line network stack "
+    "(not a PC firmware BIOS), and Synx Pass is identity, currently Keycloak. "
+    "Morph Space is how people join. This Discord bot cannot create a domain, a Ghost, or a service. "
+    "Skalle AI at skalle.ai is the product interface. "
+    "Answer from this note. If it defines the term, do not say you cannot place it."
+)
+
+
+def knowledge_note(text: str, *, direct: bool = False, background: str = "") -> str:
+    blob = f"{background}\n{text}".strip()
+    if not direct and _TOPIC.search(blob) is None:
         return ""
     book = _book()
     if book is None:
         return ""
-    parts = [book.rapid]
-    matched = _matching(book.pages, text)
+    asked = _words(text)
+    if background and _TOPIC.search(text) is None:
+        asked |= _words(background)
+    parts = ["# Public knowledge", _ANCHOR]
+    picked = _best_blocks(book.blocks, asked)
+    if picked:
+        parts.append("Relevant notes:\n\n" + "\n\n".join(picked))
+    matched = _matching(book.pages, asked)
     if matched:
         parts.append(
             "Matching pages from the public sites and the older source corpus. "
@@ -131,7 +146,7 @@ def _book() -> Book | None:
         return None
     pages = _pages(source)
     pages.extend(_corpus_pages())
-    _BOOK = Book(rapid, tuple(pages))
+    _BOOK = Book(tuple(_rapid_blocks(rapid)), tuple(pages))
     return _BOOK
 
 
@@ -161,8 +176,44 @@ def _pages(source: str) -> list[Page]:
     return pages
 
 
-def _matching(pages: tuple[Page, ...], text: str) -> str:
-    asked = _words(text)
+def _rapid_blocks(rapid: str) -> list[tuple[str, str]]:
+    blocks: list[tuple[str, str]] = []
+    for section in re.split(r"\n(?=## )", rapid.strip()):
+        section = section.strip()
+        if not section:
+            continue
+        first = section.splitlines()[0]
+        heading = first.lstrip("#").strip() if first.startswith("#") else "Note"
+        body = section.split("\n", 1)[1].strip() if "\n" in section else ""
+        paras = [part.strip() for part in re.split(r"\n\s*\n", body) if part.strip()]
+        if len(paras) <= 1:
+            if len(section) >= 80:
+                blocks.append((heading, section[:4000]))
+            continue
+        for para in paras:
+            if len(para) < 40:
+                continue
+            title = para.split("?", 1)[0].strip() if "?" in para[:90] else heading
+            blocks.append((title[:140], para[:4000]))
+    return blocks
+
+
+def _best_blocks(blocks: tuple[tuple[str, str], ...], asked: set[str], limit: int = 4) -> list[str]:
+    if not asked:
+        return []
+    scored: list[tuple[int, str]] = []
+    for title, body in blocks:
+        score = 4 * len(asked & _words(title)) + len(asked & _words(body[:2500]))
+        if score >= 2:
+            scored.append((score, body))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    chosen: list[str] = []
+    for _score, body in scored[:limit]:
+        chosen.append(_excerpt(body, asked, 1500))
+    return chosen
+
+
+def _matching(pages: tuple[Page, ...], asked: set[str]) -> str:
     if not asked:
         return ""
     scored: list[tuple[int, Page]] = []
@@ -183,7 +234,7 @@ def _matching(pages: tuple[Page, ...], text: str) -> str:
         chosen.append(public[1])
     blocks: list[str] = []
     for page in chosen:
-        limit = _MASTER_EACH if page.url.startswith("corpus:") else _EACH
+        limit = 800 if page.url.startswith("corpus:") else 1000
         body = _excerpt(page.body, asked, limit)
         urls = page.url
         if page.also:
@@ -236,9 +287,13 @@ def _excerpt(body: str, asked: set[str], limit: int) -> str:
     if len(snippet) <= limit:
         return snippet
     clipped = snippet[:limit]
-    if "\n" in clipped:
-        clipped = clipped.rsplit("\n", 1)[0]
-    return clipped.rstrip() + "\n…"
+    cut = max(clipped.rfind(". "), clipped.rfind("\n"))
+    if cut > limit // 2:
+        return clipped[: cut + 1].rstrip()
+    cut = clipped.rfind(" ")
+    if cut > limit // 2:
+        return clipped[:cut].rstrip() + "…"
+    return clipped.rstrip() + "…"
 
 
 _KEEP = {"bins", "cat", "iot", "ioe", "mad", "rtw"}

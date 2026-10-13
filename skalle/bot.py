@@ -124,7 +124,8 @@ class SkalleBot(discord.Client):
         direct = getattr(message, "guild", None) is None
         detail = direct and asks_for_detail(seen.speech)
         note = await self._live_note(message, seen.speech)
-        known = knowledge_note(seen.speech, direct=direct)
+        prior = " ".join(content for name, content in history[:-1] if name != "Skalle")
+        known = knowledge_note(seen.speech, direct=direct, background=prior[-2000:])
         if known:
             note = f"{note}\n\n{known}" if note else known
         try:

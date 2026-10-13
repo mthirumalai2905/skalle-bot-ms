@@ -14,6 +14,38 @@ def test_a_network_question_includes_the_short_answers_and_a_page():
     assert "https://realtimeweb.org" in note
     assert "Matching pages" in note
     assert "SOURCE NOTES" not in note
+    assert len(note) < 9000
+
+
+def test_synx_bios_is_the_network_command_line():
+    note = knowledge_note("whats synx bios")
+    assert "command-line interface" in note.lower()
+    assert "firmware" in note.lower()
+    assert "file synchronization" in note.lower()
+    assert len(note) < 9000
+
+
+def test_a_follow_up_about_the_tools_keeps_the_synx_context():
+    bare = knowledge_note("what are the major tools associated with it")
+    assert bare == ""
+    note = knowledge_note(
+        "what are the major tools associated with it",
+        background="tell me something about synx tools in short",
+    )
+    assert "Relevant notes" in note
+    assert "Synx BIOS" in note
+    assert "Synx DNS" in note or "Synx Pass" in note
+
+
+def test_a_follow_up_about_the_tools_keeps_the_synx_context():
+    bare = knowledge_note("what are the major tools associated with it")
+    assert bare == ""
+    note = knowledge_note(
+        "what are the major tools associated with it",
+        background="tell me something about synx tools in short",
+    )
+    assert "Synx BIOS" in note
+    assert "Synx DNS" in note or "Synx Pass" in note
 
 
 def test_a_direct_message_has_the_short_answers_even_for_a_greeting():
