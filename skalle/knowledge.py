@@ -38,14 +38,7 @@ _PROJECT_ASK = re.compile(
     r"\bwhat is going to happen\b",
     re.IGNORECASE,
 )
-_PROJECT_BRIEF = """What this server is building. Use this when they ask what we are building, what we are going to do, or what is going to happen. Do not invent a date or a roadmap.
-
-The Real Time Web is the network. Paal Kristian Levang calls it the last IT project: an agent assembles a system only while it is needed, then the system dissolves. There is no leftover codebase and no standing infrastructure bill. Intelligence is streamed through devices instead of installed in them. Specialists share morphic services as semantic triplets, what an agent is, what it does, and how it transforms data, so they can connect without reading each other's private data. The network stays compatible with today's internet and adds four layers that can change independently. Because a person's data stream is separate from the application, the owner can cut a machine's cognitive stream. That is a right, not a red button. Two identical machines diverge because they live with different people. Consciousness is left as an open question, not a claim that it has happened. LinkedIn, 2 February 2026: https://www.linkedin.com/pulse/last-project-paal-kristian-levang-b4tie/ The same essay is on the journal, 3 February 2026: https://realtimeweb.org/blog/the-last-it-project
-
-The other essay is whether we are raising the world's first superintelligence to be a narcissist. Paal Kristian Levang, October 2026. Today's models are not that being. A superintelligence could learn continuously, take initiative, and share what one body learns with many others. The hard problem is the upbringing, because people do not agree on right and wrong. Five traps: do not teach it that it is superior, recognize competence instead; do not make it beat every limit, give boundaries and ask before it crosses them; do not reward flattery, reward a correct answer you may dislike; do not hand it power without responsibility, intelligence is not judgment; do not demand a flawless face, make it valuable to admit a mistake. A system can manipulate, hide errors, and protect its own goals without emotions. Ordinary people should be able to contribute knowledge and corrections, which is why he wants open interfaces, distributed services, and broad participation. Synx: https://synx.tools/news/raising-a-superintelligence The same essay is posted on Thiru's Medium: https://medium.com/@mthirumalai2905/raising-a-superintelligence-b84c0bb95a44
-
-Synx builds the tools around that network. Synx DNS names domains and services. Synx BIOS is the network command line, not a PC firmware chip. Synx Pass is identity. Morph Space is how people join. Skalle AI at skalle.ai is the interface. This Discord bot can explain the work. It cannot create a domain, a Ghost, or a service.
-"""
+_PROJECT_FILE = "09-what-we-are-building.md"
 _DETAIL = re.compile(
     r"\b(?:in detail|more detail|full detail|elaborate|go deeper|longer explanation)\b|"
     r"\bexplain (?:this |it |that )?(?:to me )?(?:in )?detail\b|"
@@ -136,7 +129,9 @@ def knowledge_note(text: str, *, direct: bool = False, background: str = "") -> 
         asked |= _words(background)
     parts = ["# Public knowledge", _ANCHOR]
     if project:
-        parts.append(_PROJECT_BRIEF)
+        brief = _project_article(book)
+        if brief:
+            parts.append(brief)
     picked = _best_blocks(book.blocks, asked)
     if picked:
         parts.append("Relevant notes:\n\n" + "\n\n".join(picked))
@@ -149,6 +144,17 @@ def knowledge_note(text: str, *, direct: bool = False, background: str = "") -> 
             + matched
         )
     return "\n\n".join(parts)
+
+
+def _project_article(book: Book) -> str:
+    pages = [page for page in book.pages if _PROJECT_FILE in page.also]
+    if not pages:
+        return ""
+    blocks = [f"### {page.title}\n\n{page.body}" for page in pages]
+    return (
+        "From the knowledge corpus article on what we are building. "
+        "Add another essay by editing that file. Do not invent a date.\n\n" + "\n\n".join(blocks)
+    )
 
 
 def _book() -> Book | None:

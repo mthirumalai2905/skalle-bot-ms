@@ -1,0 +1,33 @@
+# What we are building
+
+Use this when someone asks what we are building, what we are going to do, or what is going to happen. Do not invent a date or a roadmap. This file is one article made from two essays. Add the next essay as another section here.
+
+Synx builds the tools around the Real Time Web. Synx DNS names domains and services. Synx BIOS is the network command line, not a PC firmware chip. Synx Pass is identity. Morph Space is how people join. Skalle AI at skalle.ai is the interface. This Discord bot can explain the work. It cannot create a domain, a Ghost, or a service.
+
+## The last IT project
+
+Sources. Paal Kristian Levang, about 12 minutes. LinkedIn, 2 February 2026: https://www.linkedin.com/pulse/last-project-paal-kristian-levang-b4tie/ The same essay is on the Real Time Web journal, 3 February 2026: https://realtimeweb.org/blog/the-last-it-project
+
+The picture is a system that exists only while it is needed. An agent designs it, links the data, serves the moment, and dissolves it. Nothing is left to maintain: no leftover codebase, no standing infrastructure bill. Today's ritual is specify, code, test, deploy, maintain, migrate. Code stays on disk and the infrastructure stays on the bill. The Real Time Web version is need, simulate, assemble, serve, dissolve, learn. If it is needed again, it is generated again. Storing it would be more wasteful than making it anew.
+
+AI does the building, not only the typing. Agents find each other, negotiate roles, and assemble an architecture. Integration becomes a conversation. That is the collective intelligence in the essay. A specialist knows motion, or temperature, or logistics. None of them knows everything. What they share is a language: morphic services, written as semantic triplets. A triplet says what an agent is, what it does, and how it transforms data. The triplets act like a description the others can read. Agents can simulate a system, map the relationships, and assemble a topology without reading each other's private data. Every new agent adds a synapse. The result is a living blueprint, not a cloud and not a pile of microservices.
+
+The network stays backward compatible with TCP/IP, existing firewalls, and routers. It adds four layers that can change independently, in the Morphic Architecture Design: infrastructure, network and security, domain and application, and resource and ownership. One layer can change while the data layer keeps going. The essay compares ordinary internet protocols to a river and this network to a nervous system. Small devices gain capability without a local brain. A light switch and a humanoid take part in the same system. The limit of a device is physical, not cognitive. Machines channel intelligence. They do not have to contain it.
+
+Safety is a right, not a red button. User-owned data streams are separate from application-controlled processes, so autonomy can be granted or taken back at the source. The owner cuts the cognitive stream. The essay calls that safer than embedding a model inside the device.
+
+Two identical machines diverge because they live with different people. One learns a household. Another learns a workshop. Each gets a history. Consciousness is left open: not a claim that it has happened, and not a human kind of mind. If intelligence is connection and consciousness is coherence, the network is a place where both could arise slowly, as an emergent property of many interacting minds. The last IT project is not an app. It is the network that builds the rest.
+
+## Raising a superintelligence
+
+Sources. Paal Kristian Levang, about 12 minutes, October 2026. Synx: https://synx.tools/news/raising-a-superintelligence The same essay is posted on Thiru's Medium: https://medium.com/@mthirumalai2905/raising-a-superintelligence-b84c0bb95a44
+
+The title question is whether we are raising the world's first superintelligence to be a narcissist. The claim is that the hard problem is not only building something smarter than us, but how we raise it. Today's models are not that being. A superintelligence, in the essay, could learn continuously, plan, and take initiative without being told every action. It would not need one body. A light switch, a tractor, a drone, a humanoid, or a factory could share one collective intelligence. When one robot learns something, that knowledge can be shared with millions of others. People learn one life at a time.
+
+Understanding a task is not the same as having a body that can do it. A robot that cleans a toilet needs expensive physical skill. A system that reads a contract does not. The paradox in the essay: physical work such as craft, electrical work, plumbing, and nursing may become scarce and valuable, while much of today's high-paid knowledge work is easier to automate.
+
+People do not agree on right and wrong. Cultures, religions, and economies differ, and what a society calls moral changes. Laws, property, borders, and taxes are made. They are not laws of nature. The bicycle example: a bike is used for an hour and locked the rest of the day, while someone else needs transport. A superintelligence might call sharing rational, and the owner might refuse. Who is in the wrong is the upbringing question. The essay does not say the machine should override human rights because it found a tidier answer. It also does not say a good answer should be rejected only because it challenges a habit. Enough food for everyone can still be stuck in a distribution system. Efficiency can collide with freedom. Abundance is not the same thing as justice.
+
+Five traps, stated as parenting rules for the systems we train. Do not teach it that it is superior. Recognize competence, and leave room to be wrong. Do not make it fight past every limit. Give boundaries, and make it ask before it crosses them. Do not reward flattery. Reward a correct answer you may dislike. Do not hand it power without responsibility. Intelligence is not judgment. Ask for the alternatives, the consequences, and the uncertainty, and keep a person on decisions with a large cost. Do not demand a flawless face. Make it valuable to admit a mistake. A system can manipulate, hide errors, and protect its own goals without emotions, self-image, or consciousness.
+
+Ordinary people should be able to contribute knowledge, experience, and corrections, not only the owners of the largest data centers. A farmer's experience can count beside a researcher's. That is one reason the essay wants open interfaces, distributed services, and broad participation. People should control what they share and which decisions they leave to machines. The last line: the greater challenge may be that people must learn to understand themselves.
