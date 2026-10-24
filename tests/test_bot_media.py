@@ -38,7 +38,7 @@ class Channel:
         return Typing()
 
 
-def settings(tmp_path):
+def settings(tmp_path, reply_wait_seconds=90):
     return Settings(
         application_id=1,
         public_key="ab" * 32,
@@ -52,6 +52,7 @@ def settings(tmp_path):
         http_port=8080,
         max_history=12,
         max_quiet_hours=72,
+        reply_wait_seconds=reply_wait_seconds,
         quiet_path=tmp_path / "quiet.json",
     )
 
@@ -113,11 +114,8 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
             await bot.on_message(sticker)
             await bot.on_message(lol)
 
-            assert bot._queue.qsize() == 2
-            queued = []
-            while not bot._queue.empty():
-                queued.append(await bot._queue.get())
-            assert [item.content for item in queued] == ["<:kekw:123456789012345678>", "lol"]
+            assert bot._queue.qsize() == 0
+            assert bot._held is lol
 
             image_then_crash = posted(
                 Channel(99, [image, RuntimeError("bad attachment")]),
@@ -139,6 +137,45 @@ def test_uploads_do_not_stop_the_next_reply(tmp_path):
             assert deepseek.note == ""
             assert deepseek.coding is False
             assert deepseek.direct is False
+        finally:
+            await bot.close()
+
+    asyncio.run(scenario())
+
+
+def test_skalle_waits_and_stays_out_of_a_reply(tmp_path):
+    async def scenario():
+        deepseek = Box()
+
+        async def reply(history, note="", coding=False, direct=False, detail=False):
+            deepseek.note = note
+            return "The Real Time Web is the network."
+
+        deepseek.reply = reply
+        bot = SkalleBot(settings(tmp_path, reply_wait_seconds=0.05), QuietStore(tmp_path / "quiet.json"), deepseek)
+        try:
+            channel = Channel(99, [])
+            opening = posted(channel, person("C", 3), content="what are we building")
+            opening.id = 10
+            await bot.on_message(opening)
+            assert bot._held is opening
+            assert opening.replies == []
+
+            between = posted(channel, person("A", 4), content="yeah tell me more")
+            between.reference = Box(message_id=10, resolved=opening)
+            await bot.on_message(between)
+            assert bot._held is None
+            await asyncio.sleep(0.08)
+            assert opening.replies == []
+            assert between.replies == []
+
+            later = posted(channel, person("C", 3), content="what are we going to do")
+            later.id = 11
+            await bot.on_message(later)
+            await asyncio.sleep(0.08)
+            assert later.replies == ["The Real Time Web is the network."]
+            assert "last IT project" in deepseek.note
+            assert opening.replies == []
         finally:
             await bot.close()
 

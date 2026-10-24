@@ -74,6 +74,15 @@ def test_a_hive_question_pulls_the_older_corpus():
     assert "intranet" in note.lower() or "private" in note.lower()
 
 
+def test_what_we_are_building_includes_both_essays():
+    note = knowledge_note("what are we building")
+    assert "last IT project" in note
+    assert "linkedin.com/pulse/last-project-paal-kristian-levang-b4tie" in note
+    assert "raising-a-superintelligence" in note
+    assert "medium.com/@mthirumalai2905/raising-a-superintelligence" in note
+    assert knowledge_note("lol") == ""
+
+
 def test_an_article_question_pulls_that_essay():
     note = knowledge_note("are we raising a superintelligence to be a narcissist", direct=True)
     assert "Five traps" in note or "parenting" in note.lower()

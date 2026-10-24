@@ -15,6 +15,7 @@ from skalle.content import see_message
 from skalle.deepseek import DeepSeekClient, DeepSeekError
 from skalle.facts import asks_for_code, asks_for_members, live_note, needs_live_facts
 from skalle.knowledge import asks_for_detail, knowledge_note
+from skalle.pace import is_between_other_people
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
 from skalle.quiet import DurationError, QuietStore
 
@@ -32,6 +33,8 @@ class SkalleBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self._queue: asyncio.Queue[discord.Message] = asyncio.Queue()
         self._worker: asyncio.Task[None] | None = None
+        self._hold: asyncio.Task[None] | None = None
+        self._held: discord.Message | None = None
         self._synced = False
         self._register_commands()
 
@@ -39,6 +42,7 @@ class SkalleBot(discord.Client):
         self._worker = asyncio.create_task(self._reply_worker())
 
     async def close(self) -> None:
+        self._cancel_hold()
         if self._worker is not None:
             self._worker.cancel()
             try:
@@ -75,7 +79,44 @@ class SkalleBot(discord.Client):
             return
         if self.store.is_quiet() or not seen.speech:
             return
-        await self._queue.put(message)
+        if is_between_other_people(message, self._bot_id()):
+            self._cancel_hold()
+            return
+        self._schedule(message)
+
+    def _bot_id(self) -> int | None:
+        user = self.user
+        if user is None:
+            return None
+        user_id = getattr(user, "id", None)
+        if isinstance(user_id, int):
+            return user_id
+        return None
+
+    def _schedule(self, message: discord.Message) -> None:
+        self._cancel_hold()
+        self._held = message
+        self._hold = asyncio.create_task(self._wait_then_reply(message))
+
+    def _cancel_hold(self) -> None:
+        task = self._hold
+        self._hold = None
+        self._held = None
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def _wait_then_reply(self, message: discord.Message) -> None:
+        try:
+            await asyncio.sleep(self.settings.reply_wait_seconds)
+            if self._held is not message or self.store.is_quiet():
+                return
+            await self._reply(message)
+        except asyncio.CancelledError:
+            raise
+        finally:
+            if self._held is message:
+                self._held = None
+                self._hold = None
 
     async def _handle_text_command(self, message: discord.Message, command: object) -> None:
         if isinstance(command, StatusCommand):

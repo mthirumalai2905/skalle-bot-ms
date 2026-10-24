@@ -49,6 +49,7 @@ class Settings:
     http_port: int
     max_history: int
     max_quiet_hours: float
+    reply_wait_seconds: int
     quiet_path: Path
 
 
@@ -69,6 +70,7 @@ def load_settings(env_file: Path | None = ROOT / ".env") -> Settings:
 
     max_history = _int("MAX_HISTORY", 12, minimum=1, maximum=30)
     max_quiet = _float("MAX_QUIET_HOURS", MAX_QUIET_HOURS, minimum=0.25, maximum=168)
+    reply_wait = _int("REPLY_WAIT_SECONDS", 90, minimum=60, maximum=120)
     http_port = _int("HTTP_INTERACTIONS_PORT", 8080, minimum=1, maximum=65535)
     return Settings(
         application_id=application_id,
@@ -83,6 +85,7 @@ def load_settings(env_file: Path | None = ROOT / ".env") -> Settings:
         http_port=http_port,
         max_history=max_history,
         max_quiet_hours=max_quiet,
+        reply_wait_seconds=reply_wait,
         quiet_path=ROOT / "data" / "quiet.json",
     )
 
