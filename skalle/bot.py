@@ -17,6 +17,7 @@ from skalle.facts import asks_for_code, asks_for_members, live_note, needs_live_
 from skalle.knowledge import asks_for_detail, knowledge_note
 from skalle.pace import is_between_other_people
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
+from skalle.sites import SiteCache, wants_company_pages
 from skalle.quiet import DurationError, QuietStore
 
 log = logging.getLogger(__name__)
@@ -35,21 +36,31 @@ class SkalleBot(discord.Client):
         self._worker: asyncio.Task[None] | None = None
         self._hold: asyncio.Task[None] | None = None
         self._held: discord.Message | None = None
+        self.sites = SiteCache()
+        self._site_task: asyncio.Task[None] | None = None
         self._synced = False
         self._register_commands()
 
     async def setup_hook(self) -> None:
         self._worker = asyncio.create_task(self._reply_worker())
+        self._site_task = asyncio.create_task(self.sites.watch())
 
     async def close(self) -> None:
         self._cancel_hold()
-        if self._worker is not None:
-            self._worker.cancel()
-            try:
-                await self._worker
-            except asyncio.CancelledError:
-                pass
+        await self._stop(self._site_task)
+        self._site_task = None
+        await self._stop(self._worker)
+        self._worker = None
         await super().close()
+
+    async def _stop(self, task: asyncio.Task[None] | None) -> None:
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     async def on_ready(self) -> None:
         log.info("Logged in as %s", self.user)
@@ -169,6 +180,9 @@ class SkalleBot(discord.Client):
         known = knowledge_note(seen.speech, direct=direct, background=prior[-2000:])
         if known:
             note = f"{note}\n\n{known}" if note else known
+        pages = self.sites.note() if wants_company_pages(f"{prior}\n{seen.speech}") else ""
+        if pages:
+            note = f"{note}\n\n{pages}" if note else pages
         try:
             async with message.channel.typing():
                 text = await self.deepseek.reply(

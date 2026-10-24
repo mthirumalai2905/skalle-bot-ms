@@ -292,3 +292,30 @@ def test_a_direct_message_carries_the_public_pages_even_when_the_channel_is_quie
             await bot.close()
 
     asyncio.run(scenario())
+
+
+def test_a_company_question_includes_the_fresh_site_text(tmp_path):
+    async def scenario():
+        from datetime import datetime, timezone
+
+        deepseek = Box()
+
+        async def reply(history, note="", coding=False, direct=False, detail=False):
+            deepseek.note = note
+            return "Skalle is preparing for launch."
+
+        deepseek.reply = reply
+        bot = SkalleBot(settings(tmp_path), QuietStore(tmp_path / "quiet.json"), deepseek)
+        bot.sites.pages["https://skalle.ai/"] = "Status Preparing for launch"
+        bot.sites.fetched_at = datetime(2026, 10, 24, 8, 0, tzinfo=timezone.utc)
+        try:
+            channel = Channel(99, [])
+            message = posted(channel, person("Thiru", 6), content="what is happening with skalle")
+            await bot._reply(message)
+            assert "https://skalle.ai/" in deepseek.note
+            assert "Preparing for launch" in deepseek.note
+            assert "Live company pages" in deepseek.note
+        finally:
+            await bot.close()
+
+    asyncio.run(scenario())
