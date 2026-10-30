@@ -6,7 +6,7 @@ Synx builds the tools around the Real Time Web. Synx DNS names domains and servi
 
 ## The last IT project
 
-Sources. Paal Kristian Levang, about 12 minutes. LinkedIn, 2 February 2026: https://www.linkedin.com/pulse/last-project-paal-kristian-levang-b4tie/ The same essay is on the Real Time Web journal, 3 February 2026: https://realtimeweb.org/blog/the-last-it-project
+Sources. Paal Kristian Levang, about 12 minutes. The essay is on the Real Time Web journal, 3 February 2026: https://realtimeweb.org/blog/the-last-it-project
 
 The picture is a system that exists only while it is needed. An agent designs it, links the data, serves the moment, and dissolves it. Nothing is left to maintain: no leftover codebase, no standing infrastructure bill. Today's ritual is specify, code, test, deploy, maintain, migrate. Code stays on disk and the infrastructure stays on the bill. The Real Time Web version is need, simulate, assemble, serve, dissolve, learn. If it is needed again, it is generated again. Storing it would be more wasteful than making it anew.
 

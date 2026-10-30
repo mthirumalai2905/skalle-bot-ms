@@ -77,10 +77,17 @@ def test_a_hive_question_pulls_the_older_corpus():
 def test_what_we_are_building_includes_both_essays():
     note = knowledge_note("what are we building")
     assert "last IT project" in note
-    assert "linkedin.com/pulse/last-project-paal-kristian-levang-b4tie" in note
+    assert "realtimeweb.org/blog/the-last-it-project" in note
+    assert "linkedin" not in note.lower()
     assert "raising-a-superintelligence" in note
     assert "medium.com/@mthirumalai2905/raising-a-superintelligence" in note
     assert knowledge_note("lol") == ""
+
+
+def test_replies_drop_linkedin_and_long_dashes():
+    assert sanitize_reply("Where were I? What's the LinkedIn thing about?") == "Where were I?"
+    assert sanitize_reply("A real point — then more.") == "A real point, then more."
+    assert "linkedin" not in sanitize_reply("Check https://www.linkedin.com/pulse/last-project and then the journal.").lower()
 
 
 def test_an_article_question_pulls_that_essay():

@@ -319,3 +319,28 @@ def test_a_company_question_includes_the_fresh_site_text(tmp_path):
             await bot.close()
 
     asyncio.run(scenario())
+
+
+def test_a_ping_is_answered_without_waiting(tmp_path):
+    async def scenario():
+        deepseek = Box()
+
+        async def reply(history, note="", coding=False, direct=False, detail=False):
+            return "I'm here."
+
+        deepseek.reply = reply
+        store = QuietStore(tmp_path / "quiet.json")
+        store.set_quiet(2, max_hours=72)
+        bot = SkalleBot(settings(tmp_path, reply_wait_seconds=30), store, deepseek)
+        bot._bot_id = lambda: 7
+        try:
+            channel = Channel(99, [])
+            message = posted(channel, person("Luffy", 8), content="<@7> how are you")
+            message.mentions = [Box(id=7)]
+            await bot.on_message(message)
+            assert message.replies == ["I'm here."]
+            assert bot._held is None
+        finally:
+            await bot.close()
+
+    asyncio.run(scenario())

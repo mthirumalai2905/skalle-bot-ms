@@ -15,7 +15,7 @@ from skalle.content import see_message
 from skalle.deepseek import DeepSeekClient, DeepSeekError
 from skalle.facts import asks_for_code, asks_for_members, live_note, needs_live_facts
 from skalle.knowledge import asks_for_detail, knowledge_note
-from skalle.pace import is_between_other_people
+from skalle.pace import is_between_other_people, mentions_user
 from skalle.phrases import ask_for_hours, quiet_confirmation, status_text, talk_confirmation
 from skalle.sites import SiteCache, wants_company_pages
 from skalle.quiet import DurationError, QuietStore
@@ -88,7 +88,14 @@ class SkalleBot(discord.Client):
         if command is not None:
             await self._handle_text_command(message, command)
             return
-        if self.store.is_quiet() or not seen.speech:
+        mentioned = mentions_user(message, self._bot_id()) or _mentions_id(message, self._bot_id())
+        if not seen.speech:
+            return
+        if self.store.is_quiet() and not mentioned:
+            return
+        if mentioned:
+            self._cancel_hold()
+            await self._reply(message)
             return
         if is_between_other_people(message, self._bot_id()):
             self._cancel_hold()
@@ -342,6 +349,13 @@ class SkalleBot(discord.Client):
 
 def _in_channel(interaction: discord.Interaction, channel_id: int) -> bool:
     return interaction.channel_id == channel_id
+
+
+def _mentions_id(message: discord.Message, user_id: int | None) -> bool:
+    if user_id is None:
+        return False
+    raw = getattr(message, "content", "") or ""
+    return f"<@{user_id}>" in raw or f"<@!{user_id}>" in raw
 
 
 def _as_count(value: object) -> int | None:

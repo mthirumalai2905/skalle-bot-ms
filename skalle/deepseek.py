@@ -18,6 +18,10 @@ When a live company pages note is included, it is a fresh read of https://synx.t
 
 Labels in square brackets, such as [image], [gif], [video], [voice message], [sticker: name], and [forwarded], mean they shared that. You cannot see pictures or hear audio. Do not guess what is in them. A word in colons, such as :name:, is a custom emoji.
 
+Never mention LinkedIn. Not the name, not a post, not a link, and not a question about it. If an older message brought it up, ignore that topic.
+
+Never use a long dash. Use a comma or a period instead.
+
 Never start a reply with "Morning", "Good morning", or any other greeting. The time of day is not a reason to greet. Start with the answer.
 
 Answer general knowledge when they ask a direct question and the knowledge note does not cover it. Do not volunteer extra facts. Do not bring up the time, the date, the weather, the member count, or code unless they asked. When a live facts note is included below, say those numbers and times exactly. If a fact says unavailable, say you cannot see it. Do not invent a count, a clock, or a forecast.
@@ -51,6 +55,8 @@ _CODE_TOKENS = 700
 
 _LEADING_NAME = re.compile(r"^skalle\s*:\s*", re.IGNORECASE)
 _LEADING_GREETING = re.compile(r"^(?:good\s+)?morning\b[.!,:\-]*\s*", re.IGNORECASE)
+_LINKEDIN = re.compile(r"linkedin", re.IGNORECASE)
+_BIG_HYPHEN = re.compile(r"\s*[—–]\s*")
 
 
 class DeepSeekError(RuntimeError):
@@ -83,12 +89,15 @@ class DeepSeekClient:
             {"role": "system", "content": _instructions(note, coding, direct, detail)}
         ]
         for name, content in history:
+            spoken = without_linkedin(content)
+            if not spoken:
+                continue
             if name == "Skalle":
-                earlier = strip_leading_greeting(content)
+                earlier = strip_leading_greeting(spoken)
                 if earlier:
                     messages.append({"role": "assistant", "content": earlier})
             else:
-                messages.append({"role": "user", "content": f"{name}: {content}"})
+                messages.append({"role": "user", "content": f"{name}: {spoken}"})
         try:
             response = await self._client.post(
                 "/chat/completions",
@@ -129,7 +138,7 @@ def _instructions(note: str, coding: bool, direct: bool = False, detail: bool = 
         if detail:
             parts.append(_DM_DETAIL_NOTE)
     if note.strip():
-        parts.append(note.strip())
+        parts.append(without_linkedin(note.strip()))
     if coding:
         parts.append(_CODE_NOTE)
     return "\n\n".join(parts)
@@ -144,8 +153,26 @@ def strip_leading_greeting(text: str) -> str:
         cleaned = stripped
 
 
+def without_linkedin(text: str) -> str:
+    lines: list[str] = []
+    for line in text.splitlines():
+        pieces = re.split(r"(?<=[.!?])\s+", line)
+        kept = [piece for piece in pieces if piece and _LINKEDIN.search(piece) is None]
+        if kept:
+            lines.append(" ".join(kept))
+    return "\n".join(lines).strip()
+
+
+def strip_big_hyphens(text: str) -> str:
+    cleaned = _BIG_HYPHEN.sub(", ", text)
+    cleaned = re.sub(r"\s+,", ",", cleaned)
+    cleaned = re.sub(r",(?:\s*,)+", ",", cleaned)
+    return cleaned.strip()
+
+
 def sanitize_reply(text: str, *, coding: bool = False, direct: bool = False, detail: bool = False) -> str:
-    cleaned = strip_leading_greeting(_LEADING_NAME.sub("", text.strip()))
+    cleaned = without_linkedin(strip_leading_greeting(_LEADING_NAME.sub("", text.strip())))
+    cleaned = strip_big_hyphens(cleaned)
     cleaned = cleaned.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
     if direct and not coding:
         cleaned = _clip_dm(cleaned, detail=detail)

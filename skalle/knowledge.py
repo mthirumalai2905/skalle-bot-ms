@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from skalle.config import ROOT
+from skalle.deepseek import without_linkedin
 
 KNOWLEDGE_PATH = ROOT / "knowledge" / "network.md"
 CORPUS_DIR = ROOT / "knowledge" / "corpus"
@@ -143,7 +144,7 @@ def knowledge_note(text: str, *, direct: bool = False, background: str = "") -> 
             "Quote a short piece. Do not dump the page.\n\n"
             + matched
         )
-    return "\n\n".join(parts)
+    return without_linkedin("\n\n".join(parts))
 
 
 def _project_article(book: Book) -> str:
